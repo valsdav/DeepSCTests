@@ -1,0 +1,181 @@
+#+TITLE:  DeepSC algorithm development
+#+FILETAGS:  :ecal:clustering:
+
+* Init the release
+#+begin_src
+scram p -n DeepSC_graph_implem_12_3_0_pre5  CMSSW_12_3_0_pre5
+cd CMSSW_12_3_0_pre5/src/
+cmsenv
+git cms-init
+git cms-merge-topic valsdav:GraphSC_CMSSW_12_3_0_pre5
+scram b -j 10
+#+end_src
+
+* Export tensorflow model
+
+* Preparation of the code for CMSSW PR
+** Tensorflow handling improvment
++ Moved to CMSSW_12_3_0_pre5
++ Working on fixed batch size for tensorflow DeepSCEvaluation class
+** Run the reconstruction
+*** Produce a configuration with cmsDriver
+Prepare the latest prelease, merge the topic branch and run the cmsDriver
+#+begin_src
+scram p -n DeepSC_graph_implem_12_3_0_pre5  CMSSW_12_3_0_pre5
+cd DeepSC_graph_implem_12_3_0_pre5/src
+cmsenv
+git cms-merge-topic valsdav:GraphSC_CMSSW_12_3_0_pre5
+scram b -j 15
+cmsDriver.py step2 --mc --eventcontent RECOSIM --runUnscheduled --datatier GEN-SIM-RECO --conditions 112X_mcRun3_2021_realistic_v16 --step RAW2DIGI,L1Reco,RECO,RECOSIM,PAT --nThreads 8 --geometry DB:Extended --era Run3 --fileout file:step3.root --filein file:step2.root  --procModifier run3_ecalclustering
+#+end_src
+*** Run the reco script
+#+begin_src bash
+cmsRun reco_strategyA.py  inputFiles=file:///eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_RECO_manyALGO_GraphSC_pfRechitThres-UL18/cluster_job3235_step2_8.root
+#+end_src
+*** Run the profiler
+kbase entry: https://kbase.valsdav.cloud/public/item/midmxB
+#+begin_src bash
+    igprof -pp -z -o ig_ele.gz -t cmsRun cmsRun reco_strategyA.py inputFiles=file://step2_RAW_fourele_2.root  >& a.log
+    # human-readable text can be obtained with -analyse
+    igprof-analyse --demangle --gdb ig_ele.gz >& ig_ele.txt
+    #sql format to use with igprof-navigator (web/cgi option)
+    igprof-analyse --sqlite -v --demangle --gdb ig_ele.gz > ig_ele.txt
+    wget https://raw.githubusercontent.com/cms-sw/cms-bot/master/fix-igprof-sql.py 
+    python fix-igprof-sql.py ig_ele.txt | sqlite3 ig_ele.sql3
+
+  # Copy to cgi-bin
+ cp ig_ele.sql3 /eos/user/d/dvalsecc/www/cgi-bin/data/DeepSC/ig_ele_100_PR.sql3
+#+end_src
+The profile webpage is: https://dvalsecc.web.cern.ch/cgi-bin/igprof-navigator/DeepSC/ig_ele_100_PR_batch64/
+
+
+* PR 
+** Links
+   - DeepSC algo PR: https://github.com/cms-sw/cmssw/pull/37115
+   - Data PR: https://github.com/cms-data/RecoEcal-EgammaClusterProducers/pull/2
+   - Slides: https://indico.cern.ch/event/1129736/#5-dnn-superclustering
+   - Profiling:
+     - DeepSC (batchsize 64) https://dvalsecc.web.cern.ch/cgi-bin/igprof-navigator/DeepSC/ig_ele_100_PR_batch64/
+     - Mustache: https://dvalsecc.web.cern.ch/cgi-bin/igprof-navigator/DeepSC/ig_ele_100_mustache_PR
+
+
+* Profiling
+We want to compare a ZEE realistic PU scenario with and without the
+DeepSC
+Workflows to compare:
+- 11846.0 2021PU+ZEE_14TeV_TuneCP5_GenSim+DigiPU+RecoNanoPU+HARVESTNanoPU 
+- 11846.19 2021PU_ecalDeepSC+ZEE_14TeV_TuneCP5_GenSim+DigiPU+RecoNanoPU+HARVESTNanoPU 
+
+  First of all let's get the driver config
+  #+begin_src
+runTheMatrix.py -e -l 11846.0 --ibeos --noRun
+runTheMatrix.py -e -l 11846.19 --ibeos --noRun
+  #+end_src
+
+* Comparison of DeepSC and Mustache after reco
+** Idea
+Go to *Evaluation/DeepSC/reco_comparison*.  I'm preparing a script to read the necessary info from
+the dumper information and produce plotting ntuples similar to the ones used for the evaluation on
+the training dataset.
+
+** Procedure
++ Associate each cluster to a caloparticle
++ Get the highest score cluster as seed
++ Check which SuperCluster has the cluster as seed
++ Extract information about the cluster and the number of windows
+  around it
+
+  Script to extract the comparison info
+  #+BEGIN_SRC bash
+       python run_reco_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_112X_mcRun3_2021_realistic_v16_Reduced_Dumper_AlgoA/crab_FourElectronsGunPt1-100_Dumper_AlgoA/220214_092524/0000/output_1.root
+    -o test.root -a sim_fraction --wp-file
+    /afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/DeepSuperCluster/NtuplesProduction/simScore_WP/simScore_Minima_ElectronsOnly_updated.root
+    -n 0 3
+    #+END_SRC
+    
+*** Run on condor
+**** Electrons
+#+begin_src bash
+  lx:run_condor > python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoB_pfRechitThres-UL18/crab_FourElectronsGunPt1-100_Dumper_AlgoB/220217_212853/0000/ -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoB/ -a sim_fraction --wp-file simScore_Minima_ElectronsOnly_updated.root  -nfg 5 -q longlunch --compress    
+  <ly_updated.root  -nfg 5 -q longlunch --compress    
+  ('N input files: ', 501)
+  ('Njobs: ', 101)
+  lx:run_condor > python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoC_pfRechitThres-UL18/crab_FourElectronsGunPt1-100_Dumper_AlgoC/220217_212528/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoC/ -a sim_fraction --wp-file simScore_Minima_ElectronsOnly_updated.root  -nfg 5 -q longlunch --compress    
+  <y_updated.root  -nfg 5 -q longlunch --compress    
+  ('N input files: ', 501)
+  ('Njobs: ', 101)
+#+end_src
+
+**** Photons
+#+begin_src bash
+    python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoA_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoA/220221_091413/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoA/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 5 -q longlunch --compress
+
+  python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoB_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoB/220221_091443/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoB/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 5 -q longlunch --compress    
+
+  python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoC_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoC/220221_091515/0000/ -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoC/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 5 -q longlunch --compress    
+
+
+python join_datasets.py -i
+/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoA
+-o
+/eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoA.h5py
+
+#+end_src
+*** Added more information to the dumper
+
+#+begin_src
+python condor_run_comparison.py -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoA_pfRechitThres-UL18/crab_FourElectronsGunPt1-100_Dumper_AlgoA/220217_213033/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoA_v2/ -a sim_fraction --wp-file simScore_Minima_ElectronsOnly_updated.root -nfg 10 -q microcentury --compress
+
+python condor_run_comparison.py -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoB_pfRechitThres-UL18/crab_FourElectronsGunPt1-100_Dumper_AlgoB/220217_212853/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electron/ele_UL18_123X_algoB_v2/ -a sim_fraction --wp-file simScore_Minima_ElectronsOnly_updated.root -nfg 10 -q microcentury --compress
+
+python condor_run_comparison.py -i /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourElectronsGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoC_pfRechitThres-UL18/crab_FourElectronsGunPt1-100_Dumper_AlgoC/220217_212528/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electron/ele_UL18_123X_algoC_v2/ -a sim_fraction --wp-file simScore_Minima_ElectronsOnly_updated.root -nfg 10 -q microcentury --compress
+
+python join_datasets.py -i /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoA_v2 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoA_v2_{type}.h5py
+
+python join_datasets.py -i /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoB_v2 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoB_v2_{type}.h5py
+
+python join_datasets.py -i /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoC_v2 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/electrons/ele_UL18_123X_algoC_v2_{type}.h5py
+#+end_src
+
+Photons
+#+begin_src
+python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoA_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoA/220221_091413/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoA_v2/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 10 -q longlunch --compress
+
+  python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoB_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoB/220221_091443/0000 -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoB_v2/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 10 -q longlunch --compress    
+
+python condor_run_comparison.py -i    /eos/cms/store/group/dpg_ecal/alca_ecalcalib/bmarzocc/Clustering/FourGammasGunPt1-100_pythia8_StdMixing_Flat55To75_14TeV_123X_mcRun3_2021_realistic_v4_Reduced_Dumper_AlgoC_pfRechitThres-UL18/crab_FourGammasGunPt1-100_Dumper_AlgoC/220221_091515/0000/ -o /eos/user/r/rdfexp/ecal/cluster/output_deepcluster_dumper/reco_comparison/gammas/gamma_UL18_123X_algoC_v2/ -a sim_fraction --wp-file simScore_Minima_PhotonsOnly_updated.root  -nfg 10 -q longlunch --compress    
+#+end_src
+
+*** Results
+Plots in
+https://dvalsecc.web.cern.ch/ECAL/Clustering/DeepCluster/RecoPlots/RecoComparison_v2_UL18/
++ Applyinh the model in CMSSW, with end-of-Run2 conditions, we obtain
+  the same performance as in the training dataset. This is a
+  validation of the implementation in CMSSW.
++ Mustache is already the new one in the validation plot: the effect is really really small.
++ Now the next step is extracting the training sample for Run3 conditions
+
+* PFNano truth association
+Code from Kenneth :https://github.com/kdlong/PFNanoProduction/tree/main
+
+#+begin_src sh  :dir /ssh:lxplus:/afs/cern.ch/work/d/dvalsecc/private/Clustering_tools/  :shell *shell-mode* :results output
+  scram p  -n  CMSSW_12_1_1_PFTruth  CMSSW_12_1_1
+  cd CMSSW_12_1_1_PFTruth/src
+  cmsenv
+  git cms-merge-topic kdlong:pfNano_CMSSW_12_1_1
+  git clone git@github.com:kdlong/PFNanoProduction.git Configuration/PFNanoProduction
+  scram b -j8
+
+  cd Configuration/PFNanoProduction
+#+end_src 
+
+
+Then, produce the sample and run the scripts
+#+begin_src sh
+cmsRun test/dijet_cff_py_GEN_SIM_DIGI_L1_DIGI2RAW_HLT.py
+cmsRun test/step2_phase1_new.py
+cmsRun test/step3_phase1_new.py
+cmsRun test/step4_NANO.py
+#+end_src
++
+  
