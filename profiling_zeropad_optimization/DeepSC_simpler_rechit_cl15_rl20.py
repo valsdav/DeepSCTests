@@ -275,7 +275,7 @@ process.particleFlowSuperClusterECAL.deepSuperClusterConfig.configFileHitsFeatur
 
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.nClusterFeatures = cms.uint32(15)
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.nWindowFeatures = cms.uint32(6)
-process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,30)
+process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,60)
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(20,60)
 
 
@@ -290,7 +290,7 @@ process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.configFileHitsFea
 
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.nClusterFeatures = cms.uint32(15)
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.nWindowFeatures = cms.uint32(6)
-process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,30)
+process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,60)
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(20,60)
 
 
