@@ -266,8 +266,8 @@ process.TFileService = cms.Service("TFileService",
 
 #### DeepSC customization
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.modelFiles = \
-    cms.vstring("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/simpler_rechits/model_smallpadding.pb",
-                "RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/simpler_rechits/model_largepadding.pb")
+    cms.vstring("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/norechits_run20/model_smallpadding.pb",
+                "RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/norechits_run20/model_largepadding.pb")
 
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.configFileClusterFeatures = cms.string("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/config_clusters_inputs.txt")
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.configFileWindowFeatures = cms.string("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/config_window_inputs.txt")
@@ -275,14 +275,14 @@ process.particleFlowSuperClusterECAL.deepSuperClusterConfig.configFileHitsFeatur
 
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.nClusterFeatures = cms.uint32(15)
 process.particleFlowSuperClusterECAL.deepSuperClusterConfig.nWindowFeatures = cms.uint32(6)
-process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,30)
-process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(20,60)
+process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(0,60)
+process.particleFlowSuperClusterECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(0,60)
 
 
 # Same customization for OOTEcal producer
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.modelFiles = \
-    cms.vstring("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/simpler_rechits/model_smallpadding.pb",
-                "RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/simpler_rechits/model_largepadding.pb")
+    cms.vstring("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/norechits_run20/model_smallpadding.pb",
+                "RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/norechits_run20/model_largepadding.pb")
 
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.configFileClusterFeatures = cms.string("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/config_clusters_inputs.txt")
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.configFileWindowFeatures = cms.string("RecoEcal/EgammaClusterProducers/data/DeepSCModels/ACAT2022/config_window_inputs.txt")
@@ -290,8 +290,8 @@ process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.configFileHitsFea
 
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.nClusterFeatures = cms.uint32(15)
 process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.nWindowFeatures = cms.uint32(6)
-process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(15,30)
-process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(20,60)
+process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNClusters = cms.vuint32(0,60)
+process.particleFlowSuperClusterOOTECAL.deepSuperClusterConfig.maxNRechits = cms.vuint32(0,60)
 
 
 
